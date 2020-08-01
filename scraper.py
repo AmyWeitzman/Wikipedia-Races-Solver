@@ -51,6 +51,7 @@ class Scraper():
             time.sleep(self.get_rand_delay())  # web scraping courtesy
 
     def get_links(self, url):
+        new_links = set()
         res = requests.get(url, headers=self.headers)
         self.num_urls += 1
         self.already_scraped.add(url)
