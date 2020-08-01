@@ -19,7 +19,6 @@ class Scraper():
         self.headers = {
             "User-Agent": "WikiRacer"
         }
-        #total_time
     
     def go(self):
         self.get_args()
