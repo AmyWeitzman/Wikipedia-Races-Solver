@@ -60,7 +60,7 @@ class Scraper():
             self.num_pages += 1
             chunky_soup = BeautifulSoup(res.content, 'html.parser')
             smooth_soup = self.strain_soup(chunky_soup)  
-            links_rel = smooth_soup.find_all('a', href=True)  # get all links
+            links_rel = smooth_soup.find_all('a', href=re.compile('^/wiki/'))  # only internal wiki links
             links_abs = set(map(self.format_link, links_rel))  # convert relative links to absolute links
             new_links = links_abs - self.already_scraped
             #page_name = soup.find(id="firstHeading").text
@@ -73,25 +73,20 @@ class Scraper():
         return new_links
 
     def strain_soup(self, soup):
-        # remove div id='mw-panel', div id=mw-head, div class="reflist", div class="sistersitebox", div class="navbox", div class="catlinks", footer
-        soup.find('div', id="mw-panel").decompose()
-        soup.find('div', id="mw-head").decompose()
+        # Remove nav/chrome elements — guarded since Wikipedia's HTML structure has changed over time
+        for sel in [('div', {'id': 'mw-panel'}), ('div', {'id': 'mw-head'}),
+                    ('footer', {}), ('a', {'id': 'top'}), ('div', {'id': 'toc'})]:
+            el = soup.find(sel[0], sel[1])
+            if el: el.decompose()
         for el in soup.find_all('div', {'class': 'reflist'}): el.decompose()
         for el in soup.find_all('div', {'class': 'sistersitebox'}): el.decompose()
         for el in soup.find_all('div', {'class': 'navbox'}): el.decompose()
         for el in soup.find_all('div', {'class': 'catlinks'}): el.decompose()
-        soup.find('footer').decompose()
-        # remove link with id='top', href start with #cite-note, a class='image', href  contains "Template", hhref contains Protection_policy, div id=toc, a class='external', href contains "Special"
-        soup.find('a', {'id': 'top'}).decompose()
         for el in soup.find_all('a', {'class': 'image'}): el.decompose()
+        for el in soup.find_all('a', {'class': 'external'}): el.decompose()
+        for el in soup.find_all('a', href=re.compile("^#.*")): el.decompose()
         for el in soup.find_all('a', href=re.compile(".*Template.*")): el.decompose()
         for el in soup.find_all('a', href=re.compile(".*Protection_policy.*")): el.decompose()
-        for el in soup.find_all('a', href=re.compile("^#.*")): el.decompose()
-        try:
-            soup.find('div', id="toc").decompose()
-        except AttributeError:
-            pass
-        for el in soup.find_all('a', {'class': 'external'}): el.decompose()
         for el in soup.find_all('a', href=re.compile(".*Special.*")): el.decompose()
 
         return soup

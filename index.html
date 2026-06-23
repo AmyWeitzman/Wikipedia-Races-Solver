@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wikipedia Races Solver</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8f9fa;
+      color: #202122;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #202122;
+    }
+
+    header p {
+      margin-top: 8px;
+      color: #54595d;
+      font-size: 1rem;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #a2a9b1;
+      border-radius: 4px;
+      padding: 28px 32px;
+      width: 100%;
+      max-width: 560px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 0.95rem;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #a2a9b1;
+      border-radius: 3px;
+      font-size: 1rem;
+      color: #202122;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]:focus {
+      border-color: #3366cc;
+      box-shadow: 0 0 0 2px rgba(51,102,204,0.15);
+    }
+
+    .hint {
+      margin-top: 4px;
+      font-size: 0.8rem;
+      color: #72777d;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    button {
+      padding: 9px 20px;
+      border: 1px solid;
+      border-radius: 3px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #findBtn {
+      background: #3366cc;
+      border-color: #3366cc;
+      color: #fff;
+      flex: 1;
+    }
+
+    #findBtn:hover:not(:disabled) { background: #2a55b0; }
+    #findBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #cancelBtn {
+      background: #fff;
+      border-color: #a2a9b1;
+      color: #202122;
+      display: none;
+    }
+
+    #cancelBtn:hover { background: #f8f9fa; }
+
+    #status {
+      margin-top: 20px;
+      min-height: 24px;
+      font-size: 0.9rem;
+      color: #54595d;
+    }
+
+    #status .exploring {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ccc;
+      border-top-color: #3366cc;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #result {
+      margin-top: 20px;
+      display: none;
+    }
+
+    #result h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #202122;
+    }
+
+    .path {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      background: #f8f9fa;
+      border: 1px solid #eaecf0;
+      border-radius: 4px;
+      padding: 14px 16px;
+    }
+
+    .path a {
+      color: #3366cc;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+
+    .path a:hover { text-decoration: underline; }
+
+    .path .arrow {
+      color: #a2a9b1;
+      font-size: 1.1rem;
+      user-select: none;
+    }
+
+    .meta {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      color: #72777d;
+    }
+
+    .error {
+      color: #d33;
+      font-size: 0.9rem;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Wikipedia Races Solver</h1>
+    <p>Find the shortest click-path between two Wikipedia articles.</p>
+  </header>
+
+  <div class="card">
+    <div class="field">
+      <label for="startInput">Start article</label>
+      <input id="startInput" type="text" placeholder="e.g. Cat" autocomplete="off">
+      <div class="hint">Enter the Wikipedia article title exactly as it appears.</div>
+    </div>
+    <div class="field">
+      <label for="endInput">End article</label>
+      <input id="endInput" type="text" placeholder="e.g. Dog" autocomplete="off">
+    </div>
+    <div class="actions">
+      <button id="findBtn">Find Path</button>
+      <button id="cancelBtn">Cancel</button>
+    </div>
+
+    <div id="status"></div>
+    <div id="result"></div>
+  </div>
+
+  <script src="solver.js"></script>
+  <script>
+    const findBtn   = document.getElementById('findBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const statusEl  = document.getElementById('status');
+    const resultEl  = document.getElementById('result');
+    let solver = null;
+
+    function setSearching(on) {
+      findBtn.disabled  = on;
+      cancelBtn.style.display = on ? 'block' : 'none';
+    }
+
+    function showProgress(page, count) {
+      statusEl.innerHTML = `
+        <div class="exploring">
+          <div class="spinner"></div>
+          <span>Exploring: <strong>${escHtml(page)}</strong> &nbsp;·&nbsp; ${count} pages visited</span>
+        </div>`;
+    }
+
+    function showError(msg) {
+      setSearching(false);
+      statusEl.innerHTML = '';
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `<div class="error">${escHtml(msg)}</div>`;
+    }
+
+    function showResult(path, pagesVisited, elapsedMs) {
+      setSearching(false);
+      statusEl.innerHTML = '';
+      resultEl.style.display = 'block';
+
+      const links = path.map(title =>
+        `<a href="https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g,'_'))}" target="_blank" rel="noopener">${escHtml(title)}</a>`
+      );
+      const arrows = links.map((l, i) => i < links.length - 1 ? l + '<span class="arrow">→</span>' : l);
+
+      resultEl.innerHTML = `
+        <h2>Path found — ${path.length - 1} click${path.length - 1 === 1 ? '' : 's'}</h2>
+        <div class="path">${arrows.join(' ')}</div>
+        <div class="meta">${pagesVisited} pages explored &nbsp;·&nbsp; ${(elapsedMs / 1000).toFixed(1)}s</div>`;
+    }
+
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    findBtn.addEventListener('click', async () => {
+      const start = document.getElementById('startInput').value.trim();
+      const end   = document.getElementById('endInput').value.trim();
+      if (!start || !end) return;
+
+      setSearching(true);
+      resultEl.style.display = 'none';
+      resultEl.innerHTML = '';
+      statusEl.innerHTML = '';
+
+      const t0 = Date.now();
+      solver = new WikiSolver(
+        (page, count) => showProgress(page, count),
+        (path, count) => showResult(path, count, Date.now() - t0),
+        (msg)         => showError(msg)
+      );
+      solver.solve(start, end);
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      if (solver) solver.cancel();
+      setSearching(false);
+      statusEl.innerHTML = 'Search cancelled.';
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !findBtn.disabled) findBtn.click();
+    });
+  </script>
+</body>
+</html>
