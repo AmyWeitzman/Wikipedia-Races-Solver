@@ -43,6 +43,8 @@ class WikiSolver {
         continue;
       }
 
+      await this._delay(100);
+
       if (this.cancelled) return;
 
       for (const link of links) {
@@ -73,6 +75,8 @@ class WikiSolver {
     }
     return path;
   }
+
+  _delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   async _normalizeTitle(title) {
     const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&redirects=1&format=json&origin=*`;
